@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rescue Mission Command & Operations Dashboard | Smart Disaster Management</title>
+  
+  <!-- Clean Professional SaaS Typography (Google Fonts) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS for Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <link rel="stylesheet" href="style.css?v=4.0">
+</head>
+<body class="dashboard-body">
+
+  <!-- ========================================================
+       TOP ENTERPRISE SAAS HEADER: Breadcrumbs & Project Actions
+       ======================================================== -->
+  <header class="main-header">
+    <div class="header-top-bar">
+      <!-- Breadcrumb Bar -->
+      <div class="breadcrumb-trail">
+        <span>Operations</span>
+        <span class="bc-sep">&rsaquo;</span>
+        <span class="bc-active">Rescue Mission Dashboard</span>
+      </div>
+
+      <!-- Live Clock & Status Strip -->
+      <div class="header-system-meta">
+        <!-- Live Mission Clock -->
+        <div class="header-clock-pill">
+          <span class="clock-label">SYSTEM TIME</span>
+          <strong id="liveMissionClock">00:00:00 UTC</strong>
+        </div>
+
+        <!-- AWS Cloud Status Pill -->
+        <div class="aws-status-pill">
+          <span class="status-indicator-green"></span>
+          <div class="status-pill-text">
+            <span class="status-name" id="syncStatusText">AWS Live Connected</span>
+            <small class="status-region" id="syncLatencyText">Mumbai &bull; ap-south-1</small>
+          </div>
+        </div>
+
+        <!-- Refresh Button -->
+        <button id="refreshBtn" class="btn-icon-action" title="Refresh Live Cloud Data">
+          🔄
+        </button>
+      </div>
+    </div>
+
+    <!-- Project Identity & Main Action Row -->
+    <div class="header-project-row">
+      <div class="project-identity-area">
+        <div class="project-title-group">
+          <div class="project-title-dropdown">
+            <span class="project-prefix">Project:</span>
+            <h1 class="project-name">Smart Disaster Management Cloud Platform</h1>
+            <span class="dropdown-caret">▾</span>
+            <span class="project-star-icon" title="Favorited Project">★</span>
+          </div>
+          <div class="project-meta-links">
+            <span class="project-url-badge">
+              <span class="url-dot"></span>
+              <span>ap-south-1.amazonaws.com</span>
+              <span class="url-ext">↗</span>
+            </span>
+            <span class="project-tag-btn">+ Add Mission Tag</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="header-action-buttons">
+        <!-- Config Drawer Toggle -->
+        <button type="button" id="toggleEndpointDrawerBtn" class="btn-secondary-action">
+          <span>⚙️</span>
+          <span>Cloud Config</span>
+        </button>
+
+        <!-- Direct Launch to Drone Camera Unit -->
+        <a href="../drone-recon-camera/index.html" target="_blank" class="btn-secondary-action drone-link">
+          <span class="pulse-beacon-red"></span>
+          <span>🛰️ Open Drone Camera Module ↗</span>
+        </a>
+
+        <!-- Primary Action Button -->
+        <button type="button" class="btn-primary-action" onclick="document.querySelector('.branch-nav-section').scrollIntoView({behavior: 'smooth'})">
+          <span>+</span>
+          <span>Dispatch Squad</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================
+       CLOUD ENDPOINT DRAWER (Configurable URL)
+       ======================================================== -->
+  <div id="endpointDrawer" class="config-drawer hidden">
+    <div class="drawer-container">
+      <div class="drawer-row">
+        <span class="drawer-label">AWS API Gateway URL:</span>
+        <input type="text" id="dashboardApiUrl" value="https://np1yqzqgvd.execute-api.ap-southeast-2.amazonaws.com/prod/incidents">
+        <button type="button" id="saveEndpointBtn" class="btn-drawer-primary">Apply Endpoint</button>
+        <button type="button" id="resetLocalBtn" class="btn-drawer-secondary">Reset Localhost</button>
+        <button type="button" id="closeDrawerBtn" class="btn-drawer-close">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-shell">
+
+    <!-- ========================================================
+         SECTION 1: MISSION ANALYTICS (SEMrush Domain Analytics Style)
+         ======================================================== -->
+    <section class="saas-card mission-analytics-card">
+      <div class="card-header-bar">
+        <div class="card-header-title">
+          <h2>Mission Analytics</h2>
+          <span class="info-circle" title="Real-time multi-branch rescue operations and aerial telemetry status">i</span>
+        </div>
+        <div class="card-header-filters">
+          <span class="filter-dropdown">All Operations ▾</span>
+          <span class="filter-dropdown">🇮🇳 Mumbai (ap-south-1) ▾</span>
+          <span class="filter-dropdown">🚁 Aerial Recon ▾</span>
+          <span class="filter-badge-date">Live Cloud Feed</span>
+          <span class="filter-close-btn" title="Reset Filters">✕</span>
+        </div>
+      </div>
+
+      <!-- 5-Metric Strip with Vertical Dividers -->
+      <div class="analytics-metrics-strip">
+        <!-- Metric 1: Distress & Readiness Score -->
+        <div class="metric-column-block">
+          <div class="metric-label-row">
+            <span>Rescue Readiness</span>
+            <span class="info-circle" title="Combined operational readiness score">i</span>
+          </div>
+          <div class="metric-score-row">
+            <div class="score-circle-badge">
+              <svg viewBox="0 0 36 36" class="circular-chart-score">
+                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                <path class="circle-fill-green" stroke-dasharray="98, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+              </svg>
+              <span class="score-value-text">98</span>
+            </div>
+            <div class="score-meta-text">
+              <span class="score-status-text">Fleet Base OK</span>
+              <small class="score-rank-text">Triage Efficiency <span class="trend-up">↑ 98.4%</span></small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metric 2: Critical Rescue Needed -->
+        <div class="metric-column-block">
+          <div class="metric-label-row">
+            <span>Critical Rescue</span>
+            <span class="info-circle" title="Victims requiring immediate life-saving extraction">i</span>
+          </div>
+          <div class="metric-num-row">
+            <strong class="kpi-big-number color-red" id="kpiPending">3</strong>
+            <span class="delta-pill delta-red">Urgent</span>
+          </div>
+          <div class="metric-sparkline-row">
+            <svg class="sparkline-svg" viewBox="0 0 100 24" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="gradRed" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#ef4444" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#ef4444" stop-opacity="0.0"/>
+                </linearGradient>
+              </defs>
+              <polygon points="0,20 15,14 30,16 45,9 60,12 75,6 90,8 100,2 100,24 0,24" fill="url(#gradRed)" />
+              <polyline points="0,20 15,14 30,16 45,9 60,12 75,6 90,8 100,2" fill="none" stroke="#ef4444" stroke-width="2" />
+            </svg>
+          </div>
+          <div class="metric-footer-note">Pending Immediate Extraction</div>
+        </div>
+
+        <!-- Metric 3: Squads Dispatched -->
+        <div class="metric-column-block">
+          <div class="metric-label-row">
+            <span>Squads Dispatched</span>
+            <span class="info-circle" title="Amphibious and field rescue teams currently deployed">i</span>
+          </div>
+          <div class="metric-num-row">
+            <strong class="kpi-big-number color-amber" id="kpiDispatched">3</strong>
+            <span class="delta-pill delta-amber">+3.44%</span>
+          </div>
+          <div class="metric-sparkline-row">
+            <svg class="sparkline-svg" viewBox="0 0 100 24" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="gradAmber" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.0"/>
+                </linearGradient>
+              </defs>
+              <polygon points="0,18 20,15 40,8 60,11 80,4 100,6 100,24 0,24" fill="url(#gradAmber)" />
+              <polyline points="0,18 20,15 40,8 60,11 80,4 100,6" fill="none" stroke="#f59e0b" stroke-width="2" />
+            </svg>
+          </div>
+          <div class="metric-footer-note">Field Teams En Route</div>
+        </div>
+
+        <!-- Metric 4: Resolved & Rescued -->
+        <div class="metric-column-block">
+          <div class="metric-label-row">
+            <span>Resolved & Saved</span>
+            <span class="info-circle" title="Casualties safely extracted and transferred to medical base">i</span>
+          </div>
+          <div class="metric-num-row">
+            <strong class="kpi-big-number color-green" id="kpiResolved">4</strong>
+            <span class="delta-pill delta-green">+18.9%</span>
+          </div>
+          <div class="metric-sparkline-row">
+            <svg class="sparkline-svg" viewBox="0 0 100 24" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="gradGreen" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#10b981" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
+                </linearGradient>
+              </defs>
+              <polygon points="0,22 20,17 40,12 60,7 80,9 100,3 100,24 0,24" fill="url(#gradGreen)" />
+              <polyline points="0,22 20,17 40,12 60,7 80,9 100,3" fill="none" stroke="#10b981" stroke-width="2" />
+            </svg>
+          </div>
+          <div class="metric-footer-note">Casualties Secured to Safety</div>
+        </div>
+
+        <!-- Metric 5: Active UAV Drones & DynamoDB Total -->
+        <div class="metric-column-block">
+          <div class="metric-label-row">
+            <span>Active UAV Drones</span>
+            <span class="info-circle" title="Aerial surveillance drones streaming live telemetry">i</span>
+            <span class="globe-mini-icon">🌐</span>
+          </div>
+          <div class="metric-num-row">
+            <strong class="kpi-big-number color-blue" id="kpiDrones">4</strong>
+            <span class="delta-pill delta-blue">Live 24/7</span>
+          </div>
+          <div class="metric-sparkline-row">
+            <svg class="sparkline-svg" viewBox="0 0 100 24" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="gradBlue" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#2563eb" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#2563eb" stop-opacity="0.0"/>
+                </linearGradient>
+              </defs>
+              <polygon points="0,15 25,12 50,16 75,8 100,5 100,24 0,24" fill="url(#gradBlue)" />
+              <polyline points="0,15 25,12 50,16 75,8 100,5" fill="none" stroke="#2563eb" stroke-width="2" />
+            </svg>
+          </div>
+          <div class="metric-footer-note">DynamoDB Records: <strong id="kpiTotal">10</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         SECTION 2: OPERATIONAL DISASTER BRANCHES (Branching Row)
+         ======================================================== -->
+    <section class="saas-card branch-nav-card">
+      <div class="card-header-bar clean-border-bottom">
+        <div class="card-header-title">
+          <h2>Operational Disaster Branches</h2>
+          <span class="info-circle" title="Filter live telemetry and tactical units by disaster type">i</span>
+        </div>
+        <span class="branch-filter-subtitle">Select disaster taskforce branch to focus mission assets</span>
+      </div>
+
+      <div class="branch-pills-row">
+        <button type="button" class="branch-pill active" data-branch="ALL">
+          <span class="branch-icon">🌐</span>
+          <span class="branch-name">All Disaster Branches</span>
+          <span class="branch-counter" id="branchAllCount">10</span>
+        </button>
+
+        <button type="button" class="branch-pill" data-branch="Flood">
+          <span class="branch-icon">🌊</span>
+          <span class="branch-name">Marine & Flood Branch</span>
+          <span class="branch-counter" id="branchFloodCount">3</span>
+        </button>
+
+        <button type="button" class="branch-pill" data-branch="Collapse">
+          <span class="branch-icon">🏚️</span>
+          <span class="branch-name">Structural Collapse Branch</span>
+          <span class="branch-counter" id="branchCollapseCount">3</span>
+        </button>
+
+        <button type="button" class="branch-pill" data-branch="Fire">
+          <span class="branch-icon">🔥</span>
+          <span class="branch-name">Fire & Hazmat Branch</span>
+          <span class="branch-counter" id="branchFireCount">2</span>
+        </button>
+
+        <button type="button" class="branch-pill" data-branch="Medical">
+          <span class="branch-icon">🚑</span>
+          <span class="branch-name">Medical Triage Branch</span>
+          <span class="branch-counter" id="branchMedicalCount">2</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         SECTION 3: COMMAND OPERATIONS SPLIT GRID (Map + Feed)
+         ======================================================== -->
+    <main class="main-operations-grid">
+
+      <!-- LEFT COLUMN: Geospatial Disaster Map & Rescue Navigation -->
+      <section class="saas-card operations-panel map-panel">
+        <div class="card-header-bar clean-border-bottom">
+          <div class="card-header-title">
+            <h2>Geospatial Disaster Map & Rescue Navigation</h2>
+            <span class="info-circle" title="Interactive tactical GIS tracking Fleet HQ Base, incident coordinates, and navigation vectors">i</span>
+          </div>
+
+          <div class="map-controls-group">
+            <div class="map-layer-switch">
+              <button type="button" class="btn-map-layer active" data-layer="streets">Streets</button>
+              <button type="button" class="btn-map-layer" data-layer="satellite">Satellite</button>
+              <button type="button" class="btn-map-layer" data-layer="dark">Dark</button>
+            </div>
+            <button type="button" id="fitAllPinsBtn" class="btn-map-action" title="Fit all pins in view">🗺️ Fit</button>
+            <button type="button" id="focusBaseBtn" class="btn-map-action" title="Focus Fleet Base Depot">⚓ Base</button>
+          </div>
+        </div>
+
+        <!-- Dynamic Route Navigation Advisory Banner -->
+        <div id="routeBanner" class="route-advisory-box hidden">
+          <div class="route-advisory-left">
+            <span id="routeBannerIcon" class="route-mode-icon">🚤</span>
+            <div id="routeBannerText" class="route-mode-desc">Routing vector active...</div>
+          </div>
+          <button id="clearRouteBtn" class="btn-dismiss-route">✕ Clear Route</button>
+        </div>
+
+        <!-- Interactive Leaflet Map Container -->
+        <div class="map-frame">
+          <div id="disasterMap"></div>
+        </div>
+
+        <!-- Map Pin Legend Bar -->
+        <div class="map-legend-bar">
+          <span class="legend-entry"><span class="legend-color-dot base"></span> Fleet HQ Base</span>
+          <span class="legend-entry"><span class="legend-color-dot critical"></span> Critical Life Threat</span>
+          <span class="legend-entry"><span class="legend-color-dot high"></span> High Urgency</span>
+          <span class="legend-entry"><span class="legend-color-dot moderate"></span> Moderate</span>
+          <span class="legend-entry"><span class="legend-color-dot resolved"></span> Resolved</span>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: Live Ingestion Stream & Actionable Incident Feed -->
+      <section class="saas-card operations-panel feed-panel">
+        <div class="card-header-bar clean-border-bottom">
+          <div class="card-header-title">
+            <h2>Live Drone Sightings & Dispatch Board</h2>
+            <span class="info-circle" title="Real-time incident feed ingested via AWS API Gateway and DynamoDB">i</span>
+          </div>
+
+          <!-- Status Lifecycle Filter Tabs -->
+          <div class="status-tab-group">
+            <button type="button" class="btn-status-tab active" data-status="ALL">All</button>
+            <button type="button" class="btn-status-tab" data-status="NEEDS_RESCUE">Needs Rescue</button>
+            <button type="button" class="btn-status-tab" data-status="DISPATCHED">Dispatched</button>
+            <button type="button" class="btn-status-tab" data-status="RESOLVED">Resolved</button>
+          </div>
+        </div>
+
+        <!-- Triage Health & Audit Bar (Inspired by SEMrush Site Health) -->
+        <div class="triage-audit-bar">
+          <div class="audit-bar-top">
+            <div class="audit-bar-label">
+              <span>Mission Incident Health & Triage Audit</span>
+              <span class="info-circle" title="Current proportion of resolved vs pending emergency incidents">i</span>
+            </div>
+            <div class="audit-legend-counters">
+              <span class="audit-counter-tag red">Critical: <strong id="auditNeedsRescue">3</strong></span>
+              <span class="audit-counter-tag amber">Dispatched: <strong id="auditDispatched">3</strong></span>
+              <span class="audit-counter-tag green">Resolved: <strong id="auditResolved">4</strong></span>
+            </div>
+          </div>
+          <div class="audit-segmented-bar">
+            <div class="audit-seg green" style="width: 40%;" title="Resolved Incidents"></div>
+            <div class="audit-seg amber" style="width: 30%;" title="Squads Dispatched"></div>
+            <div class="audit-seg red" style="width: 30%;" title="Critical Needs Rescue"></div>
+          </div>
+        </div>
+
+        <!-- Live Incident Cards Stream -->
+        <div class="incident-card-stream" id="incidentList">
+          <div class="empty-feed-placeholder">
+            <div class="spinner"></div>
+            <p>Fetching real-time records from AWS DynamoDB...</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- ========================================================
+       EVIDENCE LIGHTBOX & TARGET INSPECTOR MODAL
+       ======================================================== -->
+  <div id="imageModal" class="modal-backdrop hidden">
+    <div class="inspector-dialog">
+      <div class="inspector-header">
+        <div class="inspector-title-area">
+          <span class="inspector-icon">🎯</span>
+          <div>
+            <h3 id="modalImageCaption">Aerial Target Inspection</h3>
+            <span class="inspector-source">Amazon S3 Object Evidence Storage</span>
+          </div>
+        </div>
+        <button class="btn-modal-close" id="closeImageModal">✕</button>
+      </div>
+
+      <div class="inspector-media-frame">
+        <img id="modalFullImage" class="hidden" src="" alt="Drone evidence preview">
+        <video id="modalFullVideo" class="hidden" controls autoplay playsinline></video>
+      </div>
+
+      <div class="inspector-footer">
+        <div class="inspector-telemetry-tags">
+          <span id="modalAiConfidence" class="badge-confidence-tag">🎯 97.8% AI Confidence</span>
+          <span id="modalCoordinates" class="badge-coords-tag">📍 LAT: 18.5204 | LNG: 73.8567</span>
+          <span id="modalAltitude" class="badge-alt-tag">ALT: 42.5m</span>
+        </div>
+        <a id="modalDownloadBtn" href="#" target="_blank" class="btn-open-s3">🔗 Open S3 Image</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="app.js?v=4.0"></script>
+</body>
+</html>

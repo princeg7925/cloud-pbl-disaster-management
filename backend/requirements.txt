@@ -1,0 +1,3 @@
+# AWS Lambda & Local Backend Requirements
+# AWS Lambda environment already includes boto3 natively
+boto3>=1.28.0

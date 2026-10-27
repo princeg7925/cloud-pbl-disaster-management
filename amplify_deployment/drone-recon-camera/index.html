@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>UAV Aerial Reconnaissance | Drone Camera Module</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=3.3">
+</head>
+<body>
+  <div class="drone-container">
+    <!-- Top Tactical Status Bar -->
+    <header class="hud-topbar">
+      <div class="uav-identity">
+        <span class="live-beacon"></span>
+        <div class="uav-callsign">
+          <span class="hud-label">AIR UNIT</span>
+          <strong id="droneIdDisplay">UAV-SCOUT-01</strong>
+        </div>
+      </div>
+
+      <div class="hud-telemetry-strip">
+        <div class="telemetry-item">
+          <span class="hud-label">ALT</span>
+          <span class="hud-val" id="telemetryAlt">42.5m</span>
+        </div>
+        <div class="telemetry-item">
+          <span class="hud-label">SPEED</span>
+          <span class="hud-val" id="telemetrySpeed">21 km/h</span>
+        </div>
+        <div class="telemetry-item">
+          <span class="hud-label">BATT</span>
+          <span class="hud-val text-green" id="telemetryBatt">87%</span>
+        </div>
+        <div class="telemetry-item">
+          <span class="hud-label">SAT LINK</span>
+          <span class="hud-val text-cyan" id="telemetrySats">12 DGPS</span>
+        </div>
+      </div>
+
+      <div class="cloud-status-badge" id="cloudStatusBadge">
+        <span class="status-indicator"></span>
+        <span id="cloudStatusText">AWS ONLINE</span>
+      </div>
+    </header>
+
+    <!-- Cloud Endpoint Settings Drawer -->
+    <details class="endpoint-drawer">
+      <summary>⚙️ AWS Cloud Endpoint Settings</summary>
+      <div class="endpoint-drawer-content">
+        <label for="apiUrlInput">API Gateway Endpoint URL:</label>
+        <div class="endpoint-input-row">
+          <input type="text" id="apiUrlInput" value="https://np1yqzqgvd.execute-api.ap-southeast-2.amazonaws.com/prod/incidents" placeholder="https://xyz.execute-api.ap-southeast-2.amazonaws.com/prod/incidents">
+          <button type="button" id="resetEndpointBtn" class="btn-subtle">Reset</button>
+        </div>
+        <small>Use <code>http://localhost:5001/incidents</code> for local testing, or paste your live AWS API Gateway invoke URL.</small>
+      </div>
+    </details>
+
+    <!-- ========================================================
+         DETECTION MODE SELECTOR: Automatic vs Detect Manually
+         ======================================================== -->
+    <div class="detection-mode-bar">
+      <div class="mode-info-block">
+        <span class="mode-badge-title">AI TARGETING SYSTEM</span>
+        <strong id="modeStatusDesc" class="mode-title-desc">🤖 Automatic Human Detection Active</strong>
+      </div>
+      <div class="mode-toggle-group">
+        <button type="button" id="modeAutoBtn" class="btn-mode-select active" title="Autonomous AI locates and tracks victims automatically">
+          <span class="mode-pulse-dot"></span>
+          <span class="mode-select-text">Automatic Human Detection</span>
+        </button>
+        <button type="button" id="modeManualBtn" class="btn-mode-select" title="Switch to manual reticle placement and dragging">
+          <span class="mode-select-icon">✋</span>
+          <span class="mode-select-text">Detect Manually</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tactical Camera Viewfinder & HUD Section -->
+    <section class="camera-viewport-card">
+      <div class="viewport-header">
+        <span class="sensor-title">📷 OPTICAL PAYLOAD FEED (RECON CAMERA)</span>
+        <div class="viewport-controls">
+          <button type="button" id="snapLeftBtn" class="btn-hud-icon active" title="Lock Target on Victim on Left Stairs">📍 Victim (Stairs)</button>
+          <button type="button" id="snapCenterBtn" class="btn-hud-icon" title="Reset Target to Center">🎯 Center</button>
+          <button type="button" id="lockHumanBtn" class="btn-hud-icon btn-force-lock" title="Confirm Human at Current Crossbar">⚡ Lock Human</button>
+          <button type="button" id="switchCameraBtn" class="btn-hud-icon" title="Switch Front/Rear Camera">🔄 Flip Cam</button>
+          <button type="button" id="simulateFeedBtn" class="btn-hud-icon" title="Toggle Flood Photo / Live Camera">🛰️ Flood Photo</button>
+        </div>
+      </div>
+
+      <div class="viewport-display" id="viewportDisplay">
+        <!-- Live Video Element -->
+        <video id="droneVideo" autoplay playsinline muted></video>
+        <!-- Canvas for frame snapshotting -->
+        <canvas id="snapshotCanvas" class="hidden"></canvas>
+        <!-- Static/Simulated Image Fallback -->
+        <img id="simulatedDroneImg" class="hidden" alt="Simulated aerial drone feed">
+
+        <!-- Tactical HUD Overlay Layer -->
+        <div class="hud-overlay" id="hudOverlay">
+          <!-- Corner Framing Reticles -->
+          <div class="reticle-corner top-left"></div>
+          <div class="reticle-corner top-right"></div>
+          <div class="reticle-corner bottom-left"></div>
+          <div class="reticle-corner bottom-right"></div>
+
+          <!-- Subtle Artificial Horizon Line (Level Pitch indicator) -->
+          <div class="horizon-level-line"></div>
+
+          <!-- Autonomous Mode Indicator Badge on HUD -->
+          <div class="hud-mode-pill" id="hudModePill">
+            <span class="hud-mode-dot"></span>
+            <span id="hudModeText">🤖 AUTO AI DETECTION ENGAGED</span>
+          </div>
+
+          <!-- Dynamic Autonomous AI Laser Scan Line (sweeps when searching) -->
+          <div class="hud-scan-beam" id="hudScanBeam"></div>
+
+          <!-- AI Detection Bounding Box with Attached Dynamic Optical Target Crosshair -->
+          <div class="ai-bounding-box target-human" id="aiBoundingBox">
+            <!-- Center Tracking Ring that moves with the box -->
+            <div class="target-crosshair-ring" id="crosshairRing"></div>
+            <div class="target-crosshair-h"></div>
+            <div class="target-crosshair-v"></div>
+            <div class="target-center-dot"></div>
+
+            <!-- Top Header Tag: Status & Distress Level -->
+            <div class="box-tag" id="boxTag">
+              <span class="box-icon" id="boxStatusIcon">🚨</span>
+              <span id="detectedClassText">HUMAN DETECTED</span>
+              <span class="distress-pill-tag critical" id="boxDistressTag">DISTRESS: CRITICAL</span>
+            </div>
+
+            <!-- Bottom Readout Tag: Probability & Coordinates -->
+            <div class="box-bottom-tag" id="boxBottomTag">
+              <span class="prob-title">PROBABILITY:</span>
+              <strong id="confidencePillText">98.8%</strong>
+              <span class="target-coords-tag" id="targetCoordsTag">X 17% · Y 48%</span>
+            </div>
+          </div>
+
+          <!-- Flight Compass Tape -->
+          <div class="hud-compass-bar">
+            <span>NW</span><span>·</span><span>330</span><span>·</span><span class="heading-active">042° NE</span><span>·</span><span>060</span><span>·</span><span>E</span>
+          </div>
+
+          <!-- Tap / Drag Hint Banner -->
+          <div class="tap-target-banner">
+            <span id="targetHintText">🤖 Autonomous AI locked on victim. Tap 'Detect Manually' to adjust reticle.</span>
+          </div>
+
+          <!-- Scanline Effect Overlay -->
+          <div class="hud-scanlines"></div>
+        </div>
+
+        <!-- Camera Off State Placeholder -->
+        <div id="cameraPromptBox" class="camera-prompt-overlay hidden">
+          <div class="prompt-icon">📷</div>
+          <p>Camera feed initializing or permissions required.</p>
+          <button type="button" id="startCameraBtn" class="btn-primary">Enable Device Camera</button>
+          <button type="button" id="useSimPhotoBtn" class="btn-secondary">Load Simulated Aerial Photo</button>
+        </div>
+      </div>
+
+      <!-- Evidence Preview Strip -->
+      <div class="evidence-strip">
+        <div class="evidence-status">
+          <span class="pulse-dot-cyan"></span>
+          <span id="evidenceStateText">Live Camera Stream Active</span>
+        </div>
+        <div class="evidence-tools">
+          <input type="file" id="manualFileInput" accept="image/*,video/*" class="hidden">
+          <label for="manualFileInput" class="btn-hud-small">📁 Upload Clip/Photo</label>
+          <button type="button" id="refreshAiBtn" class="btn-hud-small">⚡ Rescan AI Confidence</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Incident Telemetry Form -->
+    <form id="reconForm" class="recon-form">
+      <!-- 1. GPS Coordinates & Geolocation Lock Card -->
+      <div class="hud-card">
+        <div class="hud-card-header">
+          <span class="card-icon">📍</span>
+          <h3>AERIAL TARGET GPS COORDINATES</h3>
+          <span class="badge-lock" id="gpsLockBadge">GPS LOCKED</span>
+        </div>
+        
+        <div class="coords-grid">
+          <div class="coord-box">
+            <span class="coord-label">LATITUDE</span>
+            <span class="coord-val" id="latDisplay">Acquiring...</span>
+          </div>
+          <div class="coord-box">
+            <span class="coord-label">LONGITUDE</span>
+            <span class="coord-val" id="lngDisplay">Acquiring...</span>
+          </div>
+          <div class="coord-box">
+            <span class="coord-label">ALTITUDE</span>
+            <span class="coord-val" id="altDisplay">42.5 m</span>
+          </div>
+          <div class="coord-box">
+            <span class="coord-label">ACCURACY</span>
+            <span class="coord-val" id="accDisplay">±3.5 m</span>
+          </div>
+        </div>
+
+        <!-- Preset Disaster Hotspot Selector -->
+        <div class="hotspot-selector-row">
+          <label for="hotspotSelect">🎯 Quick Simulation Sector:</label>
+          <select id="hotspotSelect">
+            <option value="REAL_DEVICE">Device GPS Location (Auto-Detect)</option>
+            <option value="SECTOR_PUNE_RIVER" selected>Sector 4: Mutha River Submerged Area (18.5204, 73.8567)</option>
+            <option value="SECTOR_COLLAPSE_ZONE">Sector 7: Sadashiv Peth Structural Rubble (18.5132, 73.8512)</option>
+            <option value="SECTOR_FIRE_INDUSTRIAL">Sector 2: Hadapsar Industrial Fire Hazard (18.5089, 73.9258)</option>
+            <option value="SECTOR_HILL_LANDSLIDE">Sector 9: Sinhagad Landslide Entrapment (18.3664, 73.7558)</option>
+          </select>
+          <button type="button" id="refreshGpsBtn" class="btn-subtle" title="Refresh satellite fix">🔄 Refresh GPS</button>
+        </div>
+      </div>
+
+      <!-- 2. AI Person Detection & Confidence Score Card -->
+      <div class="hud-card">
+        <div class="hud-card-header">
+          <span class="card-icon">🎯</span>
+          <h3>AI COMPUTER VISION & CONFIDENCE</h3>
+          <span class="badge-ai" id="aiModelBadge">AWS REKOGNITION EMULATOR</span>
+        </div>
+
+        <div class="confidence-meter-container">
+          <div class="confidence-readout">
+            <span class="confidence-title">VICTIM DISTRESS PROBABILITY:</span>
+            <strong class="confidence-percentage" id="confidenceValueText">96.8%</strong>
+          </div>
+          <div class="confidence-bar-track">
+            <div class="confidence-bar-fill" id="confidenceBarFill" style="width: 96.8%;"></div>
+          </div>
+          <div class="ai-tags-row" id="aiTagsRow">
+            <span class="tag-pill">👤 Person Detected</span>
+            <span class="tag-pill">🚨 Distress Hand Wave</span>
+            <span class="tag-pill">🌊 Flood Water Level High</span>
+            <span class="tag-pill">🏠 Rooftop Entrapment</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Incident Category & Severity Level -->
+      <div class="hud-card">
+        <div class="hud-card-header">
+          <span class="card-icon">⚠️</span>
+          <h3>DISASTER CLASSIFICATION & URGENCY</h3>
+        </div>
+
+        <div class="category-grid">
+          <label class="category-chip">
+            <input type="radio" name="category" value="Flood / Trapped" checked>
+            <span class="chip-content">
+              <span class="chip-icon">🌊</span>
+              <strong>Flood / Submerged</strong>
+            </span>
+          </label>
+          <label class="category-chip">
+            <input type="radio" name="category" value="Building Collapse">
+            <span class="chip-content">
+              <span class="chip-icon">🏚️</span>
+              <strong>Building Collapse</strong>
+            </span>
+          </label>
+          <label class="category-chip">
+            <input type="radio" name="category" value="Fire Incident">
+            <span class="chip-content">
+              <span class="chip-icon">🔥</span>
+              <strong>Fire / Smoke Hazard</strong>
+            </span>
+          </label>
+          <label class="category-chip">
+            <input type="radio" name="category" value="Medical Emergency">
+            <span class="chip-content">
+              <span class="chip-icon">🚑</span>
+              <strong>Medical Emergency</strong>
+            </span>
+          </label>
+        </div>
+
+        <div class="severity-strip">
+          <span class="severity-label">SEVERITY PRIORITY:</span>
+          <div class="severity-options">
+            <label class="sev-radio sev-critical">
+              <input type="radio" name="severity" value="CRITICAL" checked>
+              <span>CRITICAL (Life Threat)</span>
+            </label>
+            <label class="sev-radio sev-high">
+              <input type="radio" name="severity" value="HIGH">
+              <span>HIGH (Urgent Rescue)</span>
+            </label>
+            <label class="sev-radio sev-moderate">
+              <input type="radio" name="severity" value="MODERATE">
+              <span>MODERATE</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Tactical Observation Notes -->
+      <div class="hud-card">
+        <div class="hud-card-header">
+          <span class="card-icon">📝</span>
+          <h3>DRONE SCOUT OBSERVATION</h3>
+        </div>
+        <div class="form-group">
+          <textarea id="incidentNotes" rows="2" placeholder="e.g. UAV optical sensor locked onto 3 stranded victims signaling from second floor balcony. Water rising."></textarea>
+        </div>
+      </div>
+
+      <!-- Transmission Action Button -->
+      <button type="submit" id="transmitBtn" class="btn-transmit">
+        <span class="btn-icon">⚡</span>
+        <div class="btn-label-group">
+          <strong>TRANSMIT DRONE COORDINATES & EVIDENCE TO CLOUD</strong>
+          <small>POST /incidents ➔ AWS Lambda ➔ DynamoDB + S3 + SNS Alert</small>
+        </div>
+      </button>
+    </form>
+
+    <!-- Cloud Transmission Modal -->
+    <div id="resultModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-icon-badge" id="modalIconBadge">✅</div>
+          <div>
+            <h3 id="modalTitle">Drone Telemetry Transmitted</h3>
+            <span class="sub-label">Amazon API Gateway & Lambda Execution</span>
+          </div>
+        </div>
+
+        <div class="modal-body" id="modalBody">
+          <!-- Dynamically populated -->
+        </div>
+
+        <div class="modal-actions">
+          <a href="../rescue-dashboard/index.html" class="btn-modal-link" target="_blank">
+            🛡️ Open Rescue Dashboard ↗
+          </a>
+          <button type="button" id="closeModalBtn" class="btn-primary">Acknowledge Fix</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD Footer -->
+    <footer class="hud-footer">
+      <div>Smart Disaster Management Cloud Platform | UAV Reconnaissance Subsystem</div>
+      <div>Designed for Autonomous Aerial Search & Rescue Operations</div>
+    </footer>
+  </div>
+
+  <script src="app.js?v=3.3"></script>
+</body>
+</html>
